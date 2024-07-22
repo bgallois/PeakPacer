@@ -1,0 +1,349 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .form-container {
+        margin-bottom: 20px;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 100%;
+        max-width: 600px;
+      }
+      .form-container h3 {
+        margin-top: 0;
+      }
+      .form-container form {
+        display: flex;
+        flex-direction: column;
+      }
+      .form-container label,
+      .form-container input {
+        margin-bottom: 10px;
+      }
+      .form-container input {
+        padding: 8px;
+        font-size: 1rem;
+        width: calc(100% - 16px);
+      }
+      button {
+        padding: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+      }
+      #map {
+        height: 600px;
+        width: 100%;
+        max-width: 1200px;
+        margin-top: 20px;
+      }
+      input {
+        margin-top: 1rem;
+      }
+
+      input::file-selector-button {
+        font-weight: bold;
+        color: dodgerblue;
+        padding: 0.5em;
+        border: thin solid grey;
+        border-radius: 3px;
+      }
+      #plot {
+        width: 100%; /* Full width of its container */
+        height: 600px; /* Adjust the height as needed */
+        margin: auto; /* Center the plot horizontally */
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 1rem;
+        color: #333;
+      }
+
+      thead {
+        background-color: #f4f4f4;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border: 1px solid #ddd;
+      }
+
+      th {
+        background-color: #007bff;
+        color: white;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+
+      caption {
+        caption-side: top;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Road Data</h2>
+    <div id="map"></div>
+
+    <h2>GPS Data</h2>
+
+    <h2>Environments parameters</h2>
+    <div class="form-container">
+      <h3>Road Profile</h3>
+      <form id="athleteForm">
+        <label for="fileInput">GPX File:</label>
+        <input
+          type="file"
+          id="fileInput"
+          name="fileInput"
+          accept=".gpx"
+          required
+        /><br />
+        <label for="rollingFriction">Rolling Friction:</label>
+        <input
+          type="number"
+          id="rollingFriction"
+          name="rollingFriction"
+          step="0.001"
+          value="0.0042"
+          required
+        /><br />
+        <label for="airDensity">Air Density:</label>
+        <input
+          type="number"
+          id="airDensity"
+          name="airDensity"
+          step="0.001"
+          value="1.23472"
+          required
+        /><br />
+        <label for="windDirection">Wind Direction:</label>
+        <input
+          type="number"
+          id="windDirection"
+          name="windDirection"
+          value="0"
+          required
+        /><br />
+        <label for="windSpeed">Wind Speed (km/h):</label>
+        <input
+          type="number"
+          id="windSpeed"
+          name="windSpeed"
+          step="0.1"
+          value="0"
+          required
+        /><br />
+
+        <h2>Athlete parameters</h2>
+        <label for="ftp">FTP:</label>
+        <input type="number" id="ftp" name="ftp" value="300" required /><br />
+        <label for="pma">MAP:</label>
+        <input type="number" id="pma" name="pma" value="380" required /><br />
+        <label for="totalWeight">Total Weight:</label>
+        <input
+          type="number"
+          id="totalWeight"
+          name="totalWeight"
+          value="80"
+          required
+        /><br />
+        <label for="efficiency">Efficiency (%):</label>
+        <input
+          type="number"
+          id="efficiency"
+          name="efficiency"
+          value="98"
+          required
+        /><br />
+        <label for="cda">CdA:</label>
+        <input
+          type="number"
+          id="cda"
+          name="cda"
+          step="0.01"
+          value="0.27"
+          required
+        /><br />
+      </form>
+    </div>
+
+    <button type="button" onclick="processData()">Process</button>
+
+    <div id="plot"></div>
+
+    <table id="dataTable">
+      <thead>
+        <tr></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+      // Initialize the map
+      var map = L.map("map").setView([37.7749, -122.4194], 13);
+
+      // Add a tile layer to the map (OpenStreetMap tiles)
+      const tileLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        },
+      ).addTo(map);
+
+      function uploadFile() {
+        var input = document.getElementById("fileInput");
+        var file = input.files[0];
+
+        if (!file) {
+          alert("Please select a file!");
+          return;
+        }
+
+        var formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              alert("Error: " + data.error);
+            } else {
+              map.eachLayer((layer) => {
+                if (layer !== tileLayer) {
+                  map.removeLayer(layer);
+                }
+              });
+
+              var coordinates = data.coordinates;
+              if (coordinates.length > 0) {
+                var lat = coordinates[0][0];
+                var lon = coordinates[0][1];
+
+                map.setView([lat, lon], 13);
+
+                var latlngs = coordinates.map((coord) => [coord[0], coord[1]]);
+                L.polyline(latlngs, { color: "blue" }).addTo(map);
+              }
+            }
+          })
+          .catch((error) => console.error("Error uploading file:", error));
+      }
+      function transformJsonData(jsonData) {
+        const columns = Object.keys(jsonData);
+        const rows = Object.values(jsonData).map((rowObj) =>
+          Object.values(rowObj),
+        );
+
+        // Get the number of rows (assumed to be the same for all columns)
+        const numRows = rows[0].length;
+
+        // Create the transformed data in array format
+        let tableData = [];
+        for (let i = 0; i < numRows; i++) {
+          let row = {};
+          columns.forEach((col, index) => {
+            row[col] = rows[index][i];
+          });
+          tableData.push(row);
+        }
+        return tableData;
+      }
+      function generateTable(data) {
+        const table = document.getElementById("dataTable");
+        const thead = table.querySelector("thead tr");
+        const tbody = table.querySelector("tbody");
+
+        // Clear existing table content
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
+
+        // Check if data is not empty
+        if (data.length === 0) {
+          thead.innerHTML = "<tr><th>No Data Available</th></tr>";
+          return;
+        }
+
+        // Create table headers
+        const headers = Object.keys(data[0]);
+        headers.forEach((header) => {
+          const th = document.createElement("th");
+          th.textContent = header;
+          thead.appendChild(th);
+        });
+
+        // Create table rows
+        data.forEach((item) => {
+          const tr = document.createElement("tr");
+          headers.forEach((header) => {
+            const td = document.createElement("td");
+            td.textContent = item[header];
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+      async function processData() {
+        var form = document.getElementById("athleteForm");
+        var formData = new FormData(form);
+
+        const response = await fetch("/submit-data", {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          Plotly.purge("plot");
+          const fig = JSON.parse(result.figure);
+          Plotly.react("plot", fig.data, fig.layout);
+          const tab = JSON.parse(result.tab);
+          const tableData = transformJsonData(tab);
+          console.log(tab);
+          generateTable(tableData);
+        } else {
+          console.error(result.error);
+          alert(result.error);
+        }
+      }
+      document.getElementById("fileInput").onchange = function () {
+        uploadFile();
+      };
+    </script>
+  </body>
+</html>
