@@ -10,6 +10,8 @@ import datetime
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
+from dash import Dash, dcc, html, Input, Output
+import uuid
 
 
 def aero_force(velocity, air_density, cda, wind_speed):
@@ -168,7 +170,7 @@ def compute_split_sum(values, splits):
     return np.asarray(means)
 
 
-def analysis(rider_profil, road_profil):
+def analysis(rider_profil, road_profil, app):
     print("Start Analysis")
     road_profil["dist_precision"] = 10
     road_profil["time_precision"] = 10
@@ -188,6 +190,11 @@ def analysis(rider_profil, road_profil):
         x, road_profil["distance"], road_profil["direction"])
     slope_sampled = np.diff(elevation_sampled) / np.diff(x) * 100
     slope_sampled = np.insert(slope_sampled, 0, slope_sampled[0])
+
+    latitude_sampled = np.interp(
+        x, road_profil["distance"], [i for i, _ in coords])
+    longitude_sampled = np.interp(
+        x, road_profil["distance"], [i for _, i in coords])
 
     road_profil["slope_sampled"] = slope_sampled
     road_profil["wind_speed_sampled"] = wind(
@@ -228,16 +235,6 @@ def analysis(rider_profil, road_profil):
     time_split = np.diff(x) / velocity_sampled[:-1]
     time_exact = np.sum(np.diff(x) / velocity_sampled[:-1])
     p_t = px2pt(p_sampled, road_profil, rider_profil)
-
-    v_naive = velocity_from_power(
-        power=np.around(
-            np.mean(p_t)) *
-        np.ones_like(p_sampled),
-        slope=road_profil["slope_sampled"],
-        wind_speed=road_profil["wind_speed_sampled"],
-        **road_profil,
-        **rider_profil)
-    time_naive_exact = np.sum(np.diff(x) / v_naive[:-1])
 
     summary = "Time: " + str(datetime.timedelta(seconds=time_exact))
     summary += "\n"
@@ -306,13 +303,95 @@ def analysis(rider_profil, road_profil):
     fig.update_layout(
         template="seaborn",
         xaxis_title="Distance (m)",
+        margin=dict(l=0, r=0, t=10, b=0),
         hovermode="x")
-    fig.add_annotation(x=x[-1] * 1.1,
-                       y=np.max(p),
+    fig.add_annotation(x=1.16, y=0.5, xref="paper", yref="paper",
                        text=summary.replace("\n",
                                             "<br>"),
                        showarrow=False,
                        bordercolor="#c7c7c7",
                        bgcolor="#ffe680")
+    route = go.Scattermapbox(
+        lat=latitude_sampled,
+        lon=longitude_sampled,
+        mode='lines',
+        marker=go.scattermapbox.Marker(size=10))
+
+    position = go.Scattermapbox(
+        lat=[latitude_sampled[0]],
+        lon=[longitude_sampled[0]],
+        mode='markers + text',
+        marker=go.scattermapbox.Marker(size=10),
+        textposition="bottom right",
+        text=["Start"],
+    )
+
+    map_fig = go.Figure(data=[route, position])
+
+    map_fig.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=latitude_sampled[0], lon=longitude_sampled[0]),
+            zoom=11),
+        margin=dict(l=0, r=0, t=0, b=0),
+        showlegend=False,
+        uirevision='constant'
+    )
+
+    # Trick to not have same callback
+    # By redefining the plot every time
+    uid = uuid.uuid4()
+    app.layout = html.Div([
+        dcc.Graph(
+            id='map-plot{}'.format(uid),
+            figure=map_fig,
+            style={
+                'height': '30vh',
+                'width': '100vw',
+                'margin-right': 'auto',
+                'margin-left': 'auto'}),
+        dcc.Graph(
+            id='main-plot{}'.format(uid),
+            figure=fig,
+            style={
+                'height': '50vw',
+                'width': '100vw'}),
+    ])
+
+    @app.callback(
+        Output(
+            'map-plot{}'.format(uid),
+            'figure',
+            allow_duplicate=True),
+        # TODO move callback to app
+        Input('main-plot{}'.format(uid), 'hoverData'),
+        prevent_initial_call=True
+    )
+    def update_map(hoverData):
+        if hoverData is None:
+            return map_fig
+
+        latitude = latitude_sampled
+        longitude = longitude_sampled
+        p = p_sampled
+        velocity = velocity_sampled
+        wind = road_profil["wind_speed_sampled"]
+        slope = road_profil["slope_sampled"]
+
+        updated_map_fig = map_fig
+        index = hoverData["points"][0]["pointIndex"]
+        updated_map_fig.data[1].lat = [latitude[index]]
+        updated_map_fig.data[1].lon = [longitude[index]]
+
+        updated_map_fig.update_layout(
+            mapbox=dict(
+                style="open-street-map",
+                center=dict(lat=latitude[index], lon=longitude[index]),
+            ))
+        text = "Power: {} W <br> Speed: {} km/h <br> Wind: {} km/h <br> Slope: {}".format(
+            np.around(p[index]), np.around(velocity[index]), np.around(wind[index]), np.around(slope[index]))
+        updated_map_fig.data[1].text = text
+        return updated_map_fig
+
     print("Finished Analysis")
-    return fig, split_summary.to_json(orient="columns")
+    return app, split_summary.to_json(orient="columns")

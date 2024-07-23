@@ -4,13 +4,23 @@ import os
 import gpxpy
 import data
 import plotly.graph_objs as go
-import plotly.io as pio
+from dash import Dash, dcc, html, Input, Output
 
 app = Flask(__name__)
 UPLOAD_FOLDER = './static/gpx'
 app.config['ALLOWED_EXTENSIONS'] = {'gpx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = "azerty"
+
+dashapp = Dash(
+    __name__,
+    server=app,
+    url_base_pathname='/dash-app/',
+    prevent_initial_callbacks=True)
+dashapp.layout = html.Div([
+    dcc.Graph(id='map-plot', figure=go.Figure(), style={'height': '40vh'}),
+    dcc.Graph(id='main-plot', figure=go.Figure(), style={'height': '70vh'}),
+])
 
 
 def allowed_file(filename):
@@ -101,10 +111,9 @@ def process_data():
         "elevation": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[1],
     }
 
-    figure, tab = data.analysis(rider_profil, road_profil)
+    _, tab = data.analysis(rider_profil, road_profil, dashapp)
 
-    fig_json = pio.to_json(figure)
-    return jsonify({'figure': fig_json, 'tab': tab})
+    return jsonify({'tab': tab, 'dash_url': '/dash-app'})
 
 
 if __name__ == '__main__':

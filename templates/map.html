@@ -5,6 +5,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link
+      rel="stylesheet"
+      href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -106,9 +112,19 @@
         font-weight: bold;
         margin-bottom: 10px;
       }
+      #plotly-figure {
+        height: 100%;
+        width: 50%;
+        margin-top: 50px;
+        margin-bottom: 20px;
+      }
     </style>
   </head>
   <body>
+    <div id="processing-dialog" title="Processing" style="display: none">
+      <p>Processing your file, please wait...</p>
+    </div>
+
     <h2>Road Data</h2>
     <div id="map"></div>
 
@@ -197,7 +213,7 @@
 
     <button type="button" onclick="processData()">Process</button>
 
-    <div id="plot"></div>
+    <div id="plotly-figure"></div>
 
     <table id="dataTable">
       <thead>
@@ -318,6 +334,13 @@
         });
       }
       async function processData() {
+        $("#processing-dialog").dialog({
+          modal: true,
+          closeOnEscape: false,
+          open: function (event, ui) {
+            $(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+          },
+        });
         var form = document.getElementById("athleteForm");
         var formData = new FormData(form);
 
@@ -329,14 +352,17 @@
         const result = await response.json();
 
         if (response.ok) {
-          Plotly.purge("plot");
-          const fig = JSON.parse(result.figure);
-          Plotly.react("plot", fig.data, fig.layout);
+          var dashAppUrl = result.dash_url;
+          document.getElementById("plotly-figure").innerHTML =
+            '<iframe src="' +
+            dashAppUrl +
+            '" scrolling="no" style="width: 100%; height: 100vh; border: none;"></iframe>';
           const tab = JSON.parse(result.tab);
           const tableData = transformJsonData(tab);
-          console.log(tab);
+          $("#processing-dialog").dialog("close");
           generateTable(tableData);
         } else {
+          $("#processing-dialog").dialog("close");
           console.error(result.error);
           alert(result.error);
         }
