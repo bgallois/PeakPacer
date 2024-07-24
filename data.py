@@ -19,8 +19,24 @@ class PeakPacer:
     def __init__(self, app):
         self.data_sampled = None
         self.data_split = None
+        self.map_fig = None
+        self.fig = None
 
         self.app = app
+        self.app.layout = html.Div([
+            dcc.Graph(
+                id='map-plot',
+                figure=self.map_fig,
+                style={
+                    'height': '30vh',
+                    'width': '940px'}),
+            dcc.Graph(
+                id='main-plot',
+                figure=self.fig,
+                style={
+                    'height': '50vh',
+                    'width': '940px'}),
+        ])
 
         @app.callback(
             Output(
