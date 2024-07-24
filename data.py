@@ -138,6 +138,7 @@ def minimize_time(distance, rider_profil, road_profil, it=100):
             road_profil,
             rider_profil),
         options={
+            "eps": 2e-2,
             "maxiter": it,
             "ftol": 1e-3},
         method="SLSQP",
