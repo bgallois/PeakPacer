@@ -222,7 +222,6 @@ class PeakPacer:
         splits = np.sign(np.diff(scipy.signal.wiener(elevation_sampled, 5)))
         splits[splits == 0] = 1
         idx = np.where(splits[:-1] != splits[1:])[0]
-        idx[0] = 0
         direction_change = np.abs(
             (np.diff(direction_sampled) + 180) %
             360 - 180)
@@ -230,6 +229,7 @@ class PeakPacer:
         idx = np.unique(np.sort(np.append(idx, peaks)))
         idx = idx[np.where(np.diff(idx) > 5)[0]]
         idx = np.append(idx, len(x) - 1)
+        idx[0] = 0
 
         # Compute data mean on splits
         distance = x[idx]
