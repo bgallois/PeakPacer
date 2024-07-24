@@ -344,9 +344,9 @@ class PeakPacer:
         self.fig.update_layout(
             template="seaborn",
             xaxis_title="Distance (m)",
-            margin=dict(l=0, r=0, t=10, b=0),
+            margin=dict(l=0, r=0, t=0, b=0),
             hovermode="x")
-        self.fig.add_annotation(x=1.16, y=0.5, xref="paper", yref="paper",
+        self.fig.add_annotation(x=1, y=0, xref="paper", yref="paper", xanchor='left', yanchor='bottom',
                                 text=summary.replace("\n",
                                                      "<br>"),
                                 showarrow=False,
@@ -386,14 +386,16 @@ class PeakPacer:
                 id='map-plot',
                 figure=self.map_fig,
                 style={
-                    'height': '30vh',
-                    'width': '940px'}),
+                    'height': '35vh',
+                    'margin': '0',
+                }),
             dcc.Graph(
                 id='main-plot',
                 figure=self.fig,
                 style={
-                    'height': '50vh',
-                    'width': '940px'}),
+                    'height': '55vh',
+                    'margin': '0',
+                }),
         ])
 
         return self.split_summary.to_json(orient="columns")
