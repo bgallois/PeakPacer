@@ -18,13 +18,14 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        box-sizing: border-box;
       }
       .form-container {
         margin-bottom: 20px;
         padding: 20px;
         border: 1px solid #ccc;
         border-radius: 5px;
-        width: 100%;
+        width: 90%;
         max-width: 600px;
       }
       .form-container h3 {
@@ -32,13 +33,14 @@
       }
       .form-container form {
         display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
+        flex-direction: column;
+        gap: 10px;
       }
       .form-group {
-        width: 48%; /* Adjust as needed */
+        width: 100%;
+        display: flex;
+        flex-direction: column;
         margin-bottom: 10px;
-        position: relative;
       }
       .form-container label,
       .form-container input {
@@ -94,11 +96,6 @@
         border: thin solid grey;
         border-radius: 3px;
       }
-      #plot {
-        width: 100%; /* Full width of its container */
-        height: 600px; /* Adjust the height as needed */
-        margin: auto; /* Center the plot horizontally */
-      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -131,10 +128,41 @@
         margin-bottom: 10px;
       }
       #plotly-figure {
-        height: 100%;
+        display: flex;
         width: 50%;
-        margin-top: 50px;
-        margin-bottom: 20px;
+      }
+
+      /* Media queries for responsiveness */
+      @media (max-width: 768px) {
+        .form-container {
+          padding: 10px;
+        }
+        .form-container input {
+          font-size: 0.875rem;
+        }
+        button {
+          font-size: 0.875rem;
+          padding: 8px;
+        }
+        #plot {
+          height: 200px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .form-container {
+          padding: 5px;
+        }
+        .form-container input {
+          font-size: 0.75rem;
+        }
+        button {
+          font-size: 0.75rem;
+          padding: 6px;
+        }
+        #plot {
+          height: 150px;
+        }
       }
     </style>
   </head>
@@ -142,8 +170,6 @@
     <div id="processing-dialog" title="Processing" style="display: none">
       <p>Processing your file, please wait...</p>
     </div>
-
-    <h2>GPS Data</h2>
 
     <div class="form-container">
       <form id="athleteForm">
@@ -318,15 +344,16 @@
 
     <div id="plotly-figure"></div>
 
-    <table id="dataTable">
-      <thead>
-        <tr></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div style="overflow-x: auto">
+      <table id="dataTable">
+        <thead>
+          <tr></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
       // Initialize the map
       var map = L.map("map").setView([37.7749, -122.4194], 13);
@@ -419,7 +446,7 @@
           document.getElementById("plotly-figure").innerHTML =
             '<iframe src="' +
             dashAppUrl +
-            '" scrolling="no" style="width: 100%; height: 75vh; border: none;"></iframe>';
+            '" overflow="scroll" scrolling="yes" style="width: 100%; height: 80vh; border: none;"></iframe>';
           const tab = JSON.parse(result.tab);
           const tableData = transformJsonData(tab);
           $("#processing-dialog").dialog("close");

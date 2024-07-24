@@ -371,15 +371,13 @@ class PeakPacer:
                 figure=self.map_fig,
                 style={
                     'height': '30vh',
-                    'width': '100vw',
-                    'margin-right': 'auto',
-                    'margin-left': 'auto'}),
+                    'width': '940px'}),
             dcc.Graph(
                 id='main-plot',
                 figure=self.fig,
                 style={
-                    'height': '50vw',
-                    'width': '100vw'}),
+                    'height': '50vh',
+                    'width': '940px'}),
         ])
 
         return self.split_summary.to_json(orient="columns")
