@@ -2,7 +2,7 @@ from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 import os
 import gpxpy
-import data
+from data import PeakPacer
 import plotly.graph_objs as go
 from dash import Dash, dcc, html, Input, Output
 
@@ -15,12 +15,9 @@ app.config['SECRET_KEY'] = "azerty"
 dashapp = Dash(
     __name__,
     server=app,
-    url_base_pathname='/dash-app/',
-    prevent_initial_callbacks=True)
-dashapp.layout = html.Div([
-    dcc.Graph(id='map-plot', figure=go.Figure(), style={'height': '40vh'}),
-    dcc.Graph(id='main-plot', figure=go.Figure(), style={'height': '70vh'}),
-])
+    url_base_pathname='/dash-app/')
+
+peak_pacer = PeakPacer(dashapp)
 
 
 def allowed_file(filename):
@@ -110,8 +107,8 @@ def process_data():
         "coordinates": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[0],
         "elevation": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[1],
     }
-
-    _, tab = data.analysis(rider_profil, road_profil, dashapp)
+    peak_pacer.set_parameters(rider_profil, road_profil)
+    tab = peak_pacer.analysis()
 
     return jsonify({'tab': tab, 'dash_url': '/dash-app'})
 
