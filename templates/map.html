@@ -4,7 +4,6 @@
     <title>Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link
       rel="stylesheet"
       href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
@@ -33,16 +32,48 @@
       }
       .form-container form {
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+      .form-group {
+        width: 48%; /* Adjust as needed */
+        margin-bottom: 10px;
+        position: relative;
       }
       .form-container label,
       .form-container input {
-        margin-bottom: 10px;
+        display: block;
+        width: 100%;
       }
       .form-container input {
         padding: 8px;
         font-size: 1rem;
-        width: calc(100% - 16px);
+      }
+      .tooltip {
+        display: inline-block;
+        position: relative;
+        cursor: pointer;
+        margin-left: 5px;
+      }
+      .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 200px; /* Adjust width as needed */
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 5px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%; /* Position above the tooltip element */
+        left: 50%;
+        margin-left: -100px; /* Center the tooltip */
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
       }
       button {
         padding: 10px;
@@ -53,16 +84,9 @@
         border: none;
         border-radius: 5px;
       }
-      #map {
-        height: 600px;
-        width: 100%;
-        max-width: 1200px;
-        margin-top: 20px;
-      }
       input {
         margin-top: 1rem;
       }
-
       input::file-selector-button {
         font-weight: bold;
         color: dodgerblue;
@@ -82,31 +106,25 @@
         font-size: 1rem;
         color: #333;
       }
-
       thead {
         background-color: #f4f4f4;
       }
-
       th,
       td {
         padding: 10px;
         text-align: left;
         border: 1px solid #ddd;
       }
-
       th {
         background-color: #007bff;
         color: white;
       }
-
       tr:nth-child(even) {
         background-color: #f9f9f9;
       }
-
       tr:hover {
         background-color: #f1f1f1;
       }
-
       caption {
         caption-side: top;
         font-weight: bold;
@@ -125,89 +143,174 @@
       <p>Processing your file, please wait...</p>
     </div>
 
-    <h2>Road Data</h2>
-    <div id="map"></div>
-
     <h2>GPS Data</h2>
 
-    <h2>Environments parameters</h2>
     <div class="form-container">
-      <h3>Road Profile</h3>
       <form id="athleteForm">
-        <label for="fileInput">GPX File:</label>
-        <input
-          type="file"
-          id="fileInput"
-          name="fileInput"
-          accept=".gpx"
-          required
-        /><br />
-        <label for="rollingFriction">Rolling Friction:</label>
-        <input
-          type="number"
-          id="rollingFriction"
-          name="rollingFriction"
-          step="0.001"
-          value="0.0042"
-          required
-        /><br />
-        <label for="airDensity">Air Density:</label>
-        <input
-          type="number"
-          id="airDensity"
-          name="airDensity"
-          step="0.001"
-          value="1.23472"
-          required
-        /><br />
-        <label for="windDirection">Wind Direction:</label>
-        <input
-          type="number"
-          id="windDirection"
-          name="windDirection"
-          value="0"
-          required
-        /><br />
-        <label for="windSpeed">Wind Speed (km/h):</label>
-        <input
-          type="number"
-          id="windSpeed"
-          name="windSpeed"
-          step="0.1"
-          value="0"
-          required
-        /><br />
+        <div class="form-group">
+          <label for="fileInput">GPX File:</label>
+          <input
+            type="file"
+            id="fileInput"
+            name="fileInput"
+            accept=".gpx"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="rollingFriction">
+            Rolling Friction:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >The coefficient of rolling friction of the tires (wooden track:
+                0.0020; good asphalt: 0.0040; worn asphalt: 0.0045).</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="rollingFriction"
+            name="rollingFriction"
+            step="0.001"
+            value="0.0042"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="airDensity">
+            Air Density:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext">The density of the air in kg/m³.</span>
+            </span>
+          </label>
+          <input
+            type="number"
+            id="airDensity"
+            name="airDensity"
+            step="0.001"
+            value="1.23472"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="windDirection">
+            Wind Direction:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >The direction of where the wind is coming in degrees (0° north,
+                90° east, 180° south, 270° west).</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="windDirection"
+            name="windDirection"
+            value="0"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="windSpeed">
+            Wind Speed (km/h):
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >The speed of the wind in kilometers per hour.</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="windSpeed"
+            name="windSpeed"
+            step="0.1"
+            value="0"
+            required
+          />
+        </div>
 
-        <h2>Athlete parameters</h2>
-        <label for="ftp">FTP:</label>
-        <input type="number" id="ftp" name="ftp" value="300" required /><br />
-        <label for="pma">MAP:</label>
-        <input type="number" id="pma" name="pma" value="380" required /><br />
-        <label for="totalWeight">Total Weight:</label>
-        <input
-          type="number"
-          id="totalWeight"
-          name="totalWeight"
-          value="80"
-          required
-        /><br />
-        <label for="efficiency">Efficiency (%):</label>
-        <input
-          type="number"
-          id="efficiency"
-          name="efficiency"
-          value="98"
-          required
-        /><br />
-        <label for="cda">CdA:</label>
-        <input
-          type="number"
-          id="cda"
-          name="cda"
-          step="0.01"
-          value="0.27"
-          required
-        /><br />
+        <div class="form-group">
+          <label for="ftp">
+            FTP:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >Functional Threshold Power in watts.</span
+              >
+            </span>
+          </label>
+          <input type="number" id="ftp" name="ftp" value="300" required />
+        </div>
+        <div class="form-group">
+          <label for="pma">
+            MAP:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext">Maximum Aerobic Power in watts.</span>
+            </span>
+          </label>
+          <input type="number" id="pma" name="pma" value="380" required />
+        </div>
+        <div class="form-group">
+          <label for="totalWeight">
+            Total Weight:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >Total weight of the athlete and the bike in kilograms.</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="totalWeight"
+            name="totalWeight"
+            value="80"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="efficiency">
+            Efficiency (%):
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >Cycling efficiency as a percentage.</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="efficiency"
+            name="efficiency"
+            value="98"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="cda">
+            CdA:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >Coefficient of aerodynamic drag (TT bike: 0.25; aero road
+                position: 0.30; relaxed road position: 0.33).</span
+              >
+            </span>
+          </label>
+          <input
+            type="number"
+            id="cda"
+            name="cda"
+            step="0.01"
+            value="0.27"
+            required
+          />
+        </div>
       </form>
     </div>
 
@@ -223,7 +326,6 @@
     </table>
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
       // Initialize the map
@@ -238,47 +340,6 @@
         },
       ).addTo(map);
 
-      function uploadFile() {
-        var input = document.getElementById("fileInput");
-        var file = input.files[0];
-
-        if (!file) {
-          alert("Please select a file!");
-          return;
-        }
-
-        var formData = new FormData();
-        formData.append("file", file);
-
-        fetch("/upload", {
-          method: "POST",
-          body: formData,
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.error) {
-              alert("Error: " + data.error);
-            } else {
-              map.eachLayer((layer) => {
-                if (layer !== tileLayer) {
-                  map.removeLayer(layer);
-                }
-              });
-
-              var coordinates = data.coordinates;
-              if (coordinates.length > 0) {
-                var lat = coordinates[0][0];
-                var lon = coordinates[0][1];
-
-                map.setView([lat, lon], 13);
-
-                var latlngs = coordinates.map((coord) => [coord[0], coord[1]]);
-                L.polyline(latlngs, { color: "blue" }).addTo(map);
-              }
-            }
-          })
-          .catch((error) => console.error("Error uploading file:", error));
-      }
       function transformJsonData(jsonData) {
         const columns = Object.keys(jsonData);
         const rows = Object.values(jsonData).map((rowObj) =>
@@ -299,6 +360,7 @@
         }
         return tableData;
       }
+
       function generateTable(data) {
         const table = document.getElementById("dataTable");
         const thead = table.querySelector("thead tr");
@@ -333,6 +395,7 @@
           tbody.appendChild(tr);
         });
       }
+
       async function processData() {
         $("#processing-dialog").dialog({
           modal: true,
@@ -356,7 +419,7 @@
           document.getElementById("plotly-figure").innerHTML =
             '<iframe src="' +
             dashAppUrl +
-            '" scrolling="no" style="width: 100%; height: 100vh; border: none;"></iframe>';
+            '" scrolling="no" style="width: 100%; height: 75vh; border: none;"></iframe>';
           const tab = JSON.parse(result.tab);
           const tableData = transformJsonData(tab);
           $("#processing-dialog").dialog("close");
@@ -367,9 +430,6 @@
           alert(result.error);
         }
       }
-      document.getElementById("fileInput").onchange = function () {
-        uploadFile();
-      };
     </script>
   </body>
 </html>
