@@ -65,9 +65,16 @@ def process_data():
     wind_direction = request.form.get('windDirection')
     wind_speed = request.form.get('windSpeed')
 
-    if not all([gpx, ftp, pma_value, total_weight, efficiency, cda,
+    if not all([ftp, pma_value, total_weight, efficiency, cda,
                cda, rolling_friction, air_density, wind_direction, wind_speed]):
         return jsonify({'error': 'All fields are required'}), 400
+
+    if gpx and allowed_file(gpx.filename):
+        filename = secure_filename(gpx.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        gpx.save(filepath)
+    else:
+        gpx.filename = os.path.join("demo.gpx")
 
     rider_profil = {
         'ftp': float(ftp),

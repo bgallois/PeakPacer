@@ -21,6 +21,7 @@
         box-sizing: border-box;
       }
       .form-container {
+        margin-top: 100px;
         margin-bottom: 20px;
         padding: 20px;
         border: 1px solid #ccc;
@@ -174,7 +175,16 @@
     <div class="form-container">
       <form id="athleteForm">
         <div class="form-group">
-          <label for="fileInput">GPX File:</label>
+          <label for="fileInput"
+            >GPX File:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext"
+                >Load a valid GPX file. If none is provided, a default GPX
+                example will be loaded.</span
+              >
+            </span>
+          </label>
           <input
             type="file"
             id="fileInput"
