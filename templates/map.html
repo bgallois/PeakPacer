@@ -451,11 +451,8 @@
         const result = await response.json();
 
         if (response.ok) {
-          var dashAppUrl = result.dash_url;
           document.getElementById("plotly-figure").innerHTML =
-            '<iframe src="' +
-            dashAppUrl +
-            '" overflow="scroll" scrolling="yes" style="width: 100%; height: 80vh; border: none;"></iframe>';
+            '<iframe src="/dash-app" overflow="scroll" scrolling="yes" style="width: 100%; height: 80vh; border: none;"></iframe>';
           const tab = JSON.parse(result.tab);
           const tableData = transformJsonData(tab);
           $("#processing-dialog").dialog("close");

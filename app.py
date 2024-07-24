@@ -95,7 +95,7 @@ def process_data():
     peak_pacer.set_parameters(rider_profil, road_profil)
     tab = peak_pacer.analysis()
 
-    return jsonify({'tab': tab, 'dash_url': '/dash-app'})
+    return jsonify({'tab': tab})
 
 
 if __name__ == '__main__':
