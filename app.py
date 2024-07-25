@@ -80,7 +80,7 @@ def update_map(hoverData, clickData, session_id, map_fig):
                 lon=data["longitude"].values[index]),
         ))
     text = "Power: {} W <br> Speed: {} km/h <br> Wind: {} km/h <br> Slope: {}".format(
-        np.around(data["power"].values[index]), np.around(data["speed"].values[index]), np.around(data["wind"].values[index]), np.around(data["slope"].values[index]))
+        np.around(data["power"].values[index]), np.around(data["speed"].values[index]*3.6), np.around(data["wind"].values[index]*3.6), np.around(data["slope"].values[index]))
     updated_map_fig.data[1].text = text
     return updated_map_fig
 
