@@ -40,17 +40,17 @@
       .form-group {
         width: 100%;
         display: flex;
-        flex-direction: column;
-        margin-bottom: 10px;
+        flex-direction: row;
+        border-bottom: 1px solid #ddd;
       }
       .form-container label,
       .form-container input {
-        display: block;
-        width: 100%;
-      }
-      .form-container input {
+        display: flex;
+        align-items: center;
+        flex: 2;
         padding: 8px;
         font-size: 1rem;
+        margin-bottom: 4px;
       }
       .tooltip {
         display: inline-block;
@@ -86,9 +86,6 @@
         color: white;
         border: none;
         border-radius: 5px;
-      }
-      input {
-        margin-top: 1rem;
       }
       input::file-selector-button {
         font-weight: bold;
