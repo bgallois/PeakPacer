@@ -50,22 +50,25 @@ dashapp.layout = html.Div([
         'map-plot',
         'figure',
         allow_duplicate=True),
-    Input('main-plot', 'hoverData'),
+    [Input('main-plot', 'hoverData'),
+     Input('main-plot', 'clickData')],
     [State('session-id', 'data'), State('map-plot', 'figure')],
     prevent_initial_call=True,
 )
-def update_map(hoverData, session_id, map_fig):
+def update_map(hoverData, clickData, session_id, map_fig):
     if session_id not in user_data:
         return map_fig
 
-    print(session_id)
     data = user_data[session_id]["data_sampled"]
 
-    if hoverData is None or data is None:
+    if data is None or (clickData is None and hoverData is None):
         return map_fig
 
+    if clickData:
+        index = clickData["points"][0]["pointIndex"]
+    if hoverData:
+        index = hoverData["points"][0]["pointIndex"]
     updated_map_fig = go.Figure(map_fig)
-    index = hoverData["points"][0]["pointIndex"]
     updated_map_fig.data[1].lat = [data["latitude"].values[index]]
     updated_map_fig.data[1].lon = [data["longitude"].values[index]]
 
