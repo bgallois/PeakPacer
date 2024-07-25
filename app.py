@@ -1,21 +1,86 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
 from werkzeug.utils import secure_filename
 import os
 import gpxpy
 from data import PeakPacer
 import plotly.graph_objs as go
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash, dcc, html, Input, Output, State
+import numpy as np
+import uuid
 
 app = Flask(__name__)
 UPLOAD_FOLDER = './static/gpx'
 app.config['ALLOWED_EXTENSIONS'] = {'gpx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['SECRET_KEY'] = "azerty"
+app.config['SECRET_KEY'] = str(uuid.uuid4())
+
+user_data = {}
 
 dashapp = Dash(
     __name__,
     server=app,
     url_base_pathname='/dash-app/')
+
+
+def get_session_id():
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    return session['user_id']
+
+
+dashapp.layout = html.Div([
+    dcc.Graph(
+        id='map-plot',
+        figure=go.Figure(),
+        style={
+            'height': '30vh',
+            'width': '940px'}),
+    dcc.Graph(
+        id='main-plot',
+        figure=go.Figure(),
+        style={
+            'height': '50vh',
+            'width': '940px'}),
+    dcc.Store(id="session-id"),
+])
+
+
+@dashapp.callback(
+    Output(
+        'map-plot',
+        'figure',
+        allow_duplicate=True),
+    Input('main-plot', 'hoverData'),
+    [State('session-id', 'data'), State('map-plot', 'figure')],
+    prevent_initial_call=True,
+)
+def update_map(hoverData, session_id, map_fig):
+    if session_id not in user_data:
+        return map_fig
+
+    print(session_id)
+    data = user_data[session_id]["data_sampled"]
+
+    if hoverData is None or data is None:
+        return map_fig
+
+    updated_map_fig = go.Figure(map_fig)
+    index = hoverData["points"][0]["pointIndex"]
+    updated_map_fig.data[1].lat = [data["latitude"].values[index]]
+    updated_map_fig.data[1].lon = [data["longitude"].values[index]]
+
+    updated_map_fig.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(
+                lat=data["latitude"].values[index],
+                lon=data["longitude"].values[index]),
+        ))
+    text = "Power: {} W <br> Speed: {} km/h <br> Wind: {} km/h <br> Slope: {}".format(
+        np.around(data["power"].values[index]), np.around(data["speed"].values[index]), np.around(data["wind"].values[index]), np.around(data["slope"].values[index]))
+    updated_map_fig.data[1].text = text
+    return updated_map_fig
+
 
 peak_pacer = PeakPacer(dashapp)
 
@@ -93,9 +158,107 @@ def process_data():
         "elevation": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[1],
     }
     peak_pacer.set_parameters(rider_profil, road_profil)
-    tab = peak_pacer.analysis()
+    data_split, data_sampled, tab, summary = peak_pacer.analysis()
+    user_data[get_session_id()] = {"data_split": data_split,
+                                   "data_sampled": data_sampled,
+                                   "tab": tab,
+                                   "summary": summary}
+    plot(data_split, data_sampled, summary)
 
     return jsonify({'tab': tab})
+
+
+def plot(data_split, data_sampled, summary):
+    distance = np.insert(data_split["dx"].values, 0, 0)
+    distance = np.cumsum(distance)
+    bar = go.Bar(x=distance[:-1] + np.diff(distance) // 2,
+                 y=np.intp(data_split["power"].values),
+                 width=np.diff(distance),
+                 name="Power (W)",
+                 hoverinfo="y+text+name",
+                 hovertext=["Start {} km - End {} km - Duration {} s".format(np.around(j * 1e-3,
+                                                                                       2),
+                                                                             np.around(distance[i + 1] * 1e-3,
+                                                                                       2),
+                                                                             np.around(data_split["time"].values[i],
+                                                                                       2)) for i,
+                            j in enumerate(distance[:-1])])
+    vel = go.Line(
+        x=data_sampled["distance"].values,
+        y=data_sampled["speed"].values * 3.6,
+        name="Speed (km/h)",
+        hoverinfo="y+text+name")
+    ele = go.Line(
+        x=data_sampled["distance"].values,
+        y=data_sampled["elevation"].values,
+        name="Elevation (m)",
+        hoverinfo="y+text+name")
+    fig = go.Figure(data=[bar, vel, ele])
+    fig.update_layout(
+        template="seaborn",
+        xaxis_title="Distance (m)",
+        margin=dict(l=0, r=0, t=0, b=0),
+        hovermode="x")
+    fig.add_annotation(x=1, y=0, xref="paper", yref="paper", xanchor='left', yanchor='bottom',
+                       text=summary.replace("\n",
+                                            "<br>"),
+                       showarrow=False,
+                       bordercolor="#c7c7c7",
+                       bgcolor="#ffe680")
+    route = go.Scattermapbox(
+        lat=data_sampled["latitude"].values,
+        lon=data_sampled["longitude"].values,
+        mode='lines',
+        marker=go.scattermapbox.Marker(size=10))
+
+    position = go.Scattermapbox(
+        lat=[data_sampled["latitude"].values[0]],
+        lon=[data_sampled["longitude"].values[0]],
+        mode='markers + text',
+        marker=go.scattermapbox.Marker(size=10),
+        textposition="bottom right",
+        text=["Start"],
+    )
+
+    map_fig = go.Figure(data=[route, position])
+
+    map_fig.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(
+                lat=data_sampled["latitude"].values[0],
+                lon=data_sampled["longitude"].values[0]),
+            zoom=11),
+        margin=dict(l=0, r=0, t=0, b=0),
+        showlegend=False,
+        uirevision='constant'
+    )
+
+    dashapp.layout = html.Div([
+        dcc.Graph(
+            id='map-plot',
+            figure=map_fig,
+            style={
+                'height': '35vh',
+                'margin': '0',
+            }),
+        dcc.Graph(
+            id='main-plot',
+            figure=fig,
+            style={
+                'height': '55vh',
+                'margin': '0',
+            }),
+        dcc.Store(id="session-id", data=get_session_id()),
+    ])
+
+
+@dashapp.server.before_request
+def restrict_access():
+    if request.path == '/dash-app/':
+        referer = request.headers.get('Referer')
+        if not referer:
+            return "Access Denied", 403
 
 
 if __name__ == '__main__':

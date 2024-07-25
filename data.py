@@ -10,8 +10,9 @@ import datetime
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output
+from dash import Dash, dcc, html, Input, Output, State
 import uuid
+import os
 
 
 class PeakPacer:
@@ -21,53 +22,6 @@ class PeakPacer:
         self.data_split = None
         self.map_fig = None
         self.fig = None
-
-        self.app = app
-        self.app.layout = html.Div([
-            dcc.Graph(
-                id='map-plot',
-                figure=self.map_fig,
-                style={
-                    'height': '30vh',
-                    'width': '940px'}),
-            dcc.Graph(
-                id='main-plot',
-                figure=self.fig,
-                style={
-                    'height': '50vh',
-                    'width': '940px'}),
-        ])
-
-        @app.callback(
-            Output(
-                'map-plot',
-                'figure',
-                allow_duplicate=True),
-            Input('main-plot', 'hoverData'),
-            prevent_initial_call=True
-        )
-        def update_map(hoverData):
-            if hoverData is None or self.data_sampled is None:
-                return self.map_fig
-
-            data = self.data_sampled
-
-            updated_map_fig = self.map_fig
-            index = hoverData["points"][0]["pointIndex"]
-            updated_map_fig.data[1].lat = [data["latitude"].values[index]]
-            updated_map_fig.data[1].lon = [data["longitude"].values[index]]
-
-            updated_map_fig.update_layout(
-                mapbox=dict(
-                    style="open-street-map",
-                    center=dict(
-                        lat=data["latitude"].values[index],
-                        lon=data["longitude"].values[index]),
-                ))
-            text = "Power: {} W <br> Speed: {} km/h <br> Wind: {} km/h <br> Slope: {}".format(
-                np.around(data["power"].values[index]), np.around(data["speed"].values[index]), np.around(data["wind"].values[index]), np.around(data["slope"].values[index]))
-            updated_map_fig.data[1].text = text
-            return updated_map_fig
 
     def aero_force(self, velocity, air_density, cda, wind_speed):
         return 0.5 * cda * air_density * (velocity + wind_speed)**2
@@ -260,6 +214,7 @@ class PeakPacer:
 
         # Minimize
         p, t = self.minimize_time()
+        self.data_split["power"] = p
 
         p_sampled = np.zeros_like(x)
         for i, j in enumerate(x):
@@ -276,6 +231,8 @@ class PeakPacer:
         time_exact = np.sum(np.diff(
             self.data_sampled["distance"].values) / self.data_sampled["speed"].values[:-1])
         p_t = self.px2pt(p_sampled)
+
+        self.data_split["time"] = self.compute_split_sum(time_split, idx)
 
         summary = "Time: " + str(datetime.timedelta(seconds=time_exact))
         summary += "\n"
@@ -317,85 +274,5 @@ class PeakPacer:
                                            "gradient (%)": self.data_split["slope"].values,
                                            "wind (km/h)": 3.6 * self.data_split["wind"].values})
 
-        bar = go.Bar(x=distance[:-1] + np.diff(x[idx]) // 2,
-                     y=np.intp(p),
-                     width=np.diff(x[idx]),
-                     name="Power (W)",
-                     hoverinfo="y+text+name",
-                     hovertext=["Start {} km - End {} km - Duration {} s".format(np.around(j * 1e-3,
-                                                                                           2),
-                                                                                 np.around(distance[i + 1] * 1e-3,
-                                                                                           2),
-                                                                                 np.around(self.compute_split_sum(time_split,
-                                                                                                                  idx)[i],
-                                                                                           2)) for i,
-                                j in enumerate(distance[:-1])])
-        vel = go.Line(
-            x=x,
-            y=self.data_sampled["speed"].values * 3.6,
-            name="Speed (km/h)",
-            hoverinfo="y+text+name")
-        ele = go.Line(
-            x=x,
-            y=elevation_sampled,
-            name="Elevation (m)",
-            hoverinfo="y+text+name")
-        self.fig = go.Figure(data=[bar, vel, ele])
-        self.fig.update_layout(
-            template="seaborn",
-            xaxis_title="Distance (m)",
-            margin=dict(l=0, r=0, t=0, b=0),
-            hovermode="x")
-        self.fig.add_annotation(x=1, y=0, xref="paper", yref="paper", xanchor='left', yanchor='bottom',
-                                text=summary.replace("\n",
-                                                     "<br>"),
-                                showarrow=False,
-                                bordercolor="#c7c7c7",
-                                bgcolor="#ffe680")
-        route = go.Scattermapbox(
-            lat=self.data_sampled["latitude"].values,
-            lon=self.data_sampled["longitude"].values,
-            mode='lines',
-            marker=go.scattermapbox.Marker(size=10))
-
-        position = go.Scattermapbox(
-            lat=[self.data_sampled["latitude"].values[0]],
-            lon=[self.data_sampled["longitude"].values[0]],
-            mode='markers + text',
-            marker=go.scattermapbox.Marker(size=10),
-            textposition="bottom right",
-            text=["Start"],
-        )
-
-        self.map_fig = go.Figure(data=[route, position])
-
-        self.map_fig.update_layout(
-            mapbox=dict(
-                style="open-street-map",
-                center=dict(
-                    lat=self.data_sampled["latitude"].values[0],
-                    lon=self.data_sampled["longitude"].values[0]),
-                zoom=11),
-            margin=dict(l=0, r=0, t=0, b=0),
-            showlegend=False,
-            uirevision='constant'
-        )
-
-        self.app.layout = html.Div([
-            dcc.Graph(
-                id='map-plot',
-                figure=self.map_fig,
-                style={
-                    'height': '35vh',
-                    'margin': '0',
-                }),
-            dcc.Graph(
-                id='main-plot',
-                figure=self.fig,
-                style={
-                    'height': '55vh',
-                    'margin': '0',
-                }),
-        ])
-
-        return self.split_summary.to_json(orient="columns")
+        return self.data_split, self.data_sampled, self.split_summary.to_json(
+            orient="columns"), summary
