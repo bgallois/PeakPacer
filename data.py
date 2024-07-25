@@ -112,7 +112,7 @@ class PeakPacer:
 
     def minimize_time(self):
         start = np.random.normal(
-            self.rider_profil["ftp"], 50, len(self.data_split["dx"].values))
+            self.rider_profil["ftp"], 25, len(self.data_split["dx"].values)) + self.rider_profil["ftp"] * np.intp(self.data_split["slope"].values) * 0.1
         mean_power = ({'type': 'ineq', 'fun': self.mean_power_constraint})
         pma_power = ({'type': 'ineq', 'fun': self.pma_power_constraint})
 
@@ -120,13 +120,13 @@ class PeakPacer:
             self.travel_time,
             start,
             options={
-                "eps": 2e-2,
+                "eps": 1e-50,
                 "maxiter": 500,
-                "ftol": 1e-3},
+                "ftol": 1e-2},
             method="SLSQP",
             bounds=[
-                (1,
-                 1000)],
+                (self.rider_profil["pma"] * 0.25,
+                 self.rider_profil["pma"] * 1.5)],
             constraints=[
                 mean_power,
                 pma_power])
@@ -246,7 +246,7 @@ class PeakPacer:
         summary = "Time: " + str(datetime.timedelta(seconds=time_exact))
         summary += "\n"
         summary += "Speed: " + \
-            str(np.around(distance[-1] / time_exact * 3.6)) + " km/h"
+            str(np.around(distance[-1] / time_exact * 3.6, 2)) + " km/h"
         summary += "\n"
         summary += "1 min: " + \
             str(np.around(np.max(self.moving_average(
