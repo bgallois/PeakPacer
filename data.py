@@ -58,7 +58,11 @@ class PeakPacer:
     def moving_average(self, a, n=1):
         ret = np.cumsum(a, dtype=float)
         ret[n:] = ret[n:] - ret[:-n]
-        return ret[n - 1:] / n
+        avg = ret[n - 1:] / n
+        if avg.size != 0:
+            return avg
+        else:
+            return np.nan
 
     def target_power(self, x):
 
@@ -200,6 +204,11 @@ class PeakPacer:
         idx = idx[np.where(np.diff(idx) > 5)[0]]
         idx = np.append(idx, len(x) - 1)
         idx[0] = 0
+
+        # Limit to 75 splits
+        if len(idx) > 75:
+            a = np.percentile(np.diff(idx), (1 - 75 / len(idx)) * 100)
+            idx = np.delete(idx, np.argwhere(np.diff(idx) < a))
 
         # Compute data mean on splits
         distance = x[idx]
