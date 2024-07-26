@@ -181,13 +181,7 @@
               >
             </span>
           </label>
-          <input
-            type="file"
-            id="fileInput"
-            name="fileInput"
-            accept=".gpx"
-            required
-          />
+          <input type="file" id="fileInput" name="fileInput" accept=".gpx" />
         </div>
         <div class="form-group">
           <label for="rollingFriction">
@@ -204,8 +198,10 @@
             type="number"
             id="rollingFriction"
             name="rollingFriction"
-            step="0.001"
+            step="0.0001"
             value="0.0042"
+            min="0.0010"
+            max="0.01"
             required
           />
         </div>
@@ -221,8 +217,10 @@
             type="number"
             id="airDensity"
             name="airDensity"
-            step="0.001"
+            step="0.01"
             value="1.23472"
+            min="0.5"
+            max="1.5"
             required
           />
         </div>
@@ -241,7 +239,10 @@
             type="number"
             id="windDirection"
             name="windDirection"
+            step="10"
             value="0"
+            min="0"
+            max="360"
             required
           />
         </div>
@@ -259,8 +260,10 @@
             type="number"
             id="windSpeed"
             name="windSpeed"
-            step="0.1"
+            step="1"
             value="0"
+            min="-50"
+            max="50"
             required
           />
         </div>
@@ -275,7 +278,16 @@
               >
             </span>
           </label>
-          <input type="number" id="ftp" name="ftp" value="300" required />
+          <input
+            type="number"
+            id="ftp"
+            name="ftp"
+            step="10"
+            value="300"
+            min="50"
+            max="500"
+            required
+          />
         </div>
         <div class="form-group">
           <label for="pma">
@@ -285,7 +297,16 @@
               <span class="tooltiptext">Maximum Aerobic Power in watts.</span>
             </span>
           </label>
-          <input type="number" id="pma" name="pma" value="380" required />
+          <input
+            type="number"
+            id="pma"
+            name="pma"
+            step="10"
+            value="380"
+            min="50"
+            max="500"
+            required
+          />
         </div>
         <div class="form-group">
           <label for="totalWeight">
@@ -301,7 +322,10 @@
             type="number"
             id="totalWeight"
             name="totalWeight"
+            step="10"
             value="80"
+            min="20"
+            max="150"
             required
           />
         </div>
@@ -319,7 +343,10 @@
             type="number"
             id="efficiency"
             name="efficiency"
+            step="1"
             value="98"
+            min="50"
+            max="100"
             required
           />
         </div>
@@ -338,8 +365,10 @@
             type="number"
             id="cda"
             name="cda"
-            step="0.01"
+            step="0.005"
             value="0.27"
+            min="0.05"
+            max="1"
             required
           />
         </div>
@@ -361,17 +390,43 @@
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
-      // Initialize the map
-      var map = L.map("map").setView([37.7749, -122.4194], 13);
+      // Function to check if input values are within the specified range
+      function validateInput(input) {
+        const value = parseFloat(input.value);
+        const min = parseFloat(input.min);
+        const max = parseFloat(input.max);
 
-      // Add a tile layer to the map (OpenStreetMap tiles)
-      const tileLayer = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        },
-      ).addTo(map);
+        if (value < min || value > max) {
+          input.setCustomValidity(`Value must be between ${min} and ${max}`);
+          input.reportValidity();
+        } else {
+          input.setCustomValidity("");
+        }
+      }
+
+      // Add event listeners to each input field to validate on input
+      document.querySelectorAll("input[type='number']").forEach((input) => {
+        input.addEventListener("input", () => validateInput(input));
+      });
+
+      // Prevent form submission if any input is invalid
+      document
+        .getElementById("athleteForm")
+        .addEventListener("submit", (event) => {
+          let isValid = true;
+
+          document.querySelectorAll("input[type='number']").forEach((input) => {
+            validateInput(input);
+            if (!input.checkValidity()) {
+              isValid = false;
+            }
+          });
+
+          if (!isValid) {
+            event.preventDefault();
+            alert("Please ensure all inputs are within the specified range.");
+          }
+        });
 
       function transformJsonData(jsonData) {
         const columns = Object.keys(jsonData);
@@ -430,6 +485,33 @@
       }
 
       async function processData() {
+        event.preventDefault();
+        let isValid = true;
+        document
+          .querySelectorAll("input[type='number'], input[type='file']")
+          .forEach((input) => {
+            validateInput(input);
+            if (!input.checkValidity()) {
+              isValid = false;
+            }
+          });
+
+        // Custom validation for FTP and MAP
+        const ftpInput = document.getElementById("ftp");
+        const pmaInput = document.getElementById("pma");
+        if (parseFloat(ftpInput.value) >= parseFloat(pmaInput.value)) {
+          isValid = false;
+          ftpInput.setCustomValidity("FTP must be less than MAP.");
+          ftpInput.reportValidity();
+        } else {
+          ftpInput.setCustomValidity("");
+        }
+
+        if (!isValid) {
+          alert("Please ensure all inputs are within the specified range.");
+          return;
+        }
+
         $("#processing-dialog").dialog({
           modal: true,
           closeOnEscape: false,
