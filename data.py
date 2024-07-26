@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, Input, Output, State
 import uuid
 import os
+import time
 
 
 class PeakPacer:
@@ -49,11 +50,20 @@ class PeakPacer:
                                                      self.rolling_resistance(self.road_profil["rolling_friction"], self.rider_profil["masse"], data["slope"].values) + self.gravity(self.rider_profil["masse"], data["slope"].values))
         order_0 = -power
 
-        coefficients = np.vstack([order_3, order_2, order_1, order_0]).T
-        roots = [np.roots(coeff) for coeff in coefficients]
-        velocities = np.array(
-            [np.max(r[np.isreal(r) & (r >= 0)]).real for r in roots])
-        return velocities
+        Q = (3 * order_3 * order_1 - order_2**2) / (9 * order_3**2)
+        R = (9 * order_3 * order_2 * order_1 - 27 * order_3 **
+             2 * order_0 - 2 * order_2**3) / (54 * order_3**3)
+
+        Z = Q**3 + R**2
+
+        if np.any(Z <= 0):
+            Z = Z.astype(np.complex128)
+
+        S = (R + np.sqrt(Z))**(1 / 3)
+        T = np.sign(R - np.sqrt(Z)) * (np.abs(R - np.sqrt(Z)))**(1 / 3)
+        velocities = S + T - order_2 / (3 * order_3)
+
+        return np.real(velocities)
 
     def moving_average(self, a, n=1):
         ret = np.cumsum(a, dtype=float)
@@ -157,6 +167,7 @@ class PeakPacer:
 
     def analysis(self):
 
+        start = time.time()
         # Compute data from GPS
         geod = Geodesic.WGS84
         coords = self.road_profil["coordinates"]
@@ -283,5 +294,6 @@ class PeakPacer:
                                            "gradient (%)": self.data_split["slope"].values,
                                            "wind (km/h)": 3.6 * self.data_split["wind"].values})
 
+        print("Computation time ", time.time() - start)
         return self.data_split, self.data_sampled, self.split_summary.to_json(
             orient="columns"), summary
