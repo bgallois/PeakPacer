@@ -132,6 +132,7 @@ def process_data():
     air_density = request.form.get('airDensity')
     wind_direction = request.form.get('windDirection')
     wind_speed = request.form.get('windSpeed')
+    solver = request.form.get('solver')
 
     if not all([ftp, pma_value, total_weight, efficiency, cda,
                cda, rolling_friction, air_density, wind_direction, wind_speed]):
@@ -160,7 +161,7 @@ def process_data():
         "coordinates": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[0],
         "elevation": process_gpx(os.path.join(app.config['UPLOAD_FOLDER'], gpx.filename))[1],
     }
-    peak_pacer.set_parameters(rider_profil, road_profil)
+    peak_pacer.set_parameters(rider_profil, road_profil, solver)
     data_split, data_sampled, tab, summary = peak_pacer.analysis()
     user_data[get_session_id()] = {"data_split": data_split,
                                    "data_sampled": data_sampled,

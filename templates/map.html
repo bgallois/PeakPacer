@@ -44,7 +44,8 @@
         border-bottom: 1px solid #ddd;
       }
       .form-container label,
-      .form-container input {
+      .form-container input,
+      select {
         display: flex;
         align-items: center;
         flex: 2;
@@ -87,7 +88,8 @@
         border: none;
         border-radius: 5px;
       }
-      input::file-selector-button {
+      input::file-selector-button,
+      select::file-selector-button {
         font-weight: bold;
         color: dodgerblue;
         padding: 0.5em;
@@ -134,7 +136,8 @@
         .form-container {
           padding: 10px;
         }
-        .form-container input {
+        .form-container input,
+        select {
           font-size: 0.875rem;
         }
         button {
@@ -150,7 +153,8 @@
         .form-container {
           padding: 5px;
         }
-        .form-container input {
+        .form-container input,
+        select {
           font-size: 0.75rem;
         }
         button {
@@ -217,8 +221,8 @@
             type="number"
             id="airDensity"
             name="airDensity"
-            step="0.00001"
-            value="1.23472"
+            step="0.000001"
+            value="1.234720"
             min="0.5"
             max="1.5"
             required
@@ -239,7 +243,7 @@
             type="number"
             id="windDirection"
             name="windDirection"
-            step="10"
+            step="1"
             value="0"
             min="0"
             max="360"
@@ -260,10 +264,10 @@
             type="number"
             id="windSpeed"
             name="windSpeed"
-            step="1"
+            step="0.1"
             value="0"
-            min="-50"
-            max="50"
+            min="-50.0"
+            max="50.0"
             required
           />
         </div>
@@ -282,7 +286,7 @@
             type="number"
             id="ftp"
             name="ftp"
-            step="10"
+            step="1"
             value="300"
             min="50"
             max="500"
@@ -301,7 +305,7 @@
             type="number"
             id="pma"
             name="pma"
-            step="10"
+            step="1"
             value="380"
             min="50"
             max="500"
@@ -322,8 +326,8 @@
             type="number"
             id="totalWeight"
             name="totalWeight"
-            step="10"
-            value="80"
+            step="0.1"
+            value="80.0"
             min="20"
             max="150"
             required
@@ -365,12 +369,29 @@
             type="number"
             id="cda"
             name="cda"
-            step="0.005"
-            value="0.27"
-            min="0.05"
+            step="0.001"
+            value="0.270"
+            min="0.001"
             max="1"
             required
           />
+        </div>
+        <div class="form-group">
+          <label for="solver"
+            >Choose a solver:
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext">
+                Split: Autodetect meaningful split (fastest, best, default).
+                100m: 100 meters split (slow). 10m: 10 meters split (slow).
+              </span>
+            </span>
+          </label>
+          <select id="solver" name="solver">
+            <option value="split">Split</option>
+            <option value="continuous">100 meters</option>
+            <option value="exact">50 meters</option>
+          </select>
         </div>
       </form>
     </div>

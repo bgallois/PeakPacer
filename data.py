@@ -116,9 +116,9 @@ class PeakPacer:
 
         p_time = []
         for i, j in enumerate(t):
-            p_time.extend([power[i]] * int(j / 10))
+            p_time.extend([power[i]] * int(j))
         return 0.95 * self.rider_profil["pma"] - \
-            np.max(self.moving_average(p_time, 30))
+            np.max(self.moving_average(p_time, 300))
 
     def minimize_time(self):
         start = np.random.normal(
@@ -159,11 +159,12 @@ class PeakPacer:
             means.append(np.sum(values[j:splits[i + 1]]))
         return np.asarray(means)
 
-    def set_parameters(self, rider_profil, road_profil):
+    def set_parameters(self, rider_profil, road_profil, solver):
         self.rider_profil = dict(rider_profil)
         self.road_profil = dict(road_profil)
         self.road_profil["dist_precision"] = 10
         self.road_profil["time_precision"] = 10
+        self.solver = solver.lower()
 
     def analysis(self):
 
@@ -203,24 +204,37 @@ class PeakPacer:
                                           "longitude": longitude_sampled,
                                           "wind": wind_sampled})
 
-        # Detect split
-        splits = np.sign(np.diff(scipy.signal.wiener(elevation_sampled, 5)))
-        splits[splits == 0] = 1
-        idx = np.where(splits[:-1] != splits[1:])[0]
-        direction_change = np.abs(
-            (np.diff(direction_sampled) + 180) %
-            360 - 180)
-        peaks, _ = scipy.signal.find_peaks(direction_change, height=40)
-        idx = np.unique(np.sort(np.append(idx, peaks)))
-        idx = idx[np.where(np.diff(idx) > 5)[0]]
-        idx = np.append(idx, len(x) - 1)
-        idx[0] = 0
-
-        # Limit to 300 splits
-        if len(idx) > 300:
-            a = np.percentile(np.diff(idx), (1 - 300 / len(idx)) * 100)
-            idx = np.delete(idx, np.argwhere(np.diff(idx) < a))
+        if self.solver == "split":
+            # Detect split
+            splits = np.sign(
+                np.diff(
+                    scipy.signal.wiener(
+                        elevation_sampled,
+                        5)))
+            splits[splits == 0] = 1
+            idx = np.where(splits[:-1] != splits[1:])[0]
+            direction_change = np.abs(
+                (np.diff(direction_sampled) + 180) %
+                360 - 180)
+            peaks, _ = scipy.signal.find_peaks(direction_change, height=40)
+            idx = np.unique(np.sort(np.append(idx, peaks)))
+            idx = idx[np.where(np.diff(idx) > 5)[0]]
+            idx = np.append(idx, len(x) - 1)
             idx[0] = 0
+
+            # Limit to 300 splits
+            if len(idx) > 300:
+                a = np.percentile(np.diff(idx), (1 - 300 / len(idx)) * 100)
+                idx = np.delete(idx, np.argwhere(np.diff(idx) < a))
+                idx[0] = 0
+
+        elif self.solver == "continuous":
+            idx = np.arange(0, len(x), 100 //
+                            self.road_profil["dist_precision"])
+        elif self.solver == "exact":
+            idx = np.arange(0, len(x))
+            idx = np.arange(
+                0, len(x), 50 // self.road_profil["dist_precision"])
 
         # Compute data mean on splits
         distance = x[idx]
