@@ -216,10 +216,11 @@ class PeakPacer:
         idx = np.append(idx, len(x) - 1)
         idx[0] = 0
 
-        # Limit to 75 splits
-        if len(idx) > 75:
-            a = np.percentile(np.diff(idx), (1 - 75 / len(idx)) * 100)
+        # Limit to 300 splits
+        if len(idx) > 300:
+            a = np.percentile(np.diff(idx), (1 - 300 / len(idx)) * 100)
             idx = np.delete(idx, np.argwhere(np.diff(idx) < a))
+            idx[0] = 0
 
         # Compute data mean on splits
         distance = x[idx]
