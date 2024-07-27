@@ -22,6 +22,12 @@ dashapp = Dash(
     url_base_pathname='/dash-app/')
 
 
+@app.route('/favicon.png')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, './static'),
+                               'favicon.png', mimetype='image/vnd.microsoft.icon')
+
+
 def get_session_id():
     if 'user_id' not in session:
         session['user_id'] = str(uuid.uuid4())
@@ -129,13 +135,15 @@ def process_data():
     efficiency = request.form.get('efficiency')
     cda = request.form.get('cda')
     rolling_friction = request.form.get('rollingFriction')
-    air_density = request.form.get('airDensity')
+    temperature = request.form.get('temperature')
+    pressure = request.form.get('pressure')
+    humidity = request.form.get('humidity')
     wind_direction = request.form.get('windDirection')
     wind_speed = request.form.get('windSpeed')
     solver = request.form.get('solver')
 
     if not all([ftp, pma_value, total_weight, efficiency, cda,
-               cda, rolling_friction, air_density, wind_direction, wind_speed]):
+               cda, rolling_friction, wind_direction, wind_speed, temperature, pressure, humidity]):
         return jsonify({'error': 'All fields are required'}), 400
 
     if gpx and allowed_file(gpx.filename):
@@ -154,7 +162,7 @@ def process_data():
     }
 
     road_profil = {
-        "air_density": float(air_density),
+        "air_density": peak_pacer.get_air_density(float(temperature), float(pressure), float(humidity)),
         "rolling_friction": float(rolling_friction),
         "wind_direction_param": float(wind_direction),
         "wind_speed_param": float(wind_speed) / 3.6,

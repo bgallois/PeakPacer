@@ -14,6 +14,8 @@ from dash import Dash, dcc, html, Input, Output, State
 import uuid
 import os
 import time
+import metpy.calc
+from metpy.units import units
 
 
 class PeakPacer:
@@ -23,6 +25,16 @@ class PeakPacer:
         self.data_split = None
         self.map_fig = None
         self.fig = None
+
+    @staticmethod
+    def get_air_density(temperature, pressure, humidity):
+        mixing_ratio = metpy.calc.mixing_ratio_from_relative_humidity(
+            pressure * units.hPa, temperature * units.degC, humidity / 100)
+        density = metpy.calc.density(
+            pressure * units.hPa,
+            temperature * units.degC,
+            mixing_ratio)
+        return density.magnitude
 
     def aero_force(self, velocity, air_density, cda, wind_speed):
         return 0.5 * cda * air_density * (velocity + wind_speed)**2

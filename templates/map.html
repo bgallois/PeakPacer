@@ -4,7 +4,10 @@
     <title>PeakPacer</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', filename='favicon.png') }}"
+    />
     <link
       rel="stylesheet"
       href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
@@ -211,21 +214,59 @@
           />
         </div>
         <div class="form-group">
-          <label for="airDensity">
-            Air Density:
+          <label for="temperature">
+            Temperature (°C):
             <span class="tooltip"
               >?
-              <span class="tooltiptext">The density of the air in kg/m³.</span>
+              <span class="tooltiptext">The air temperature in °C.</span>
             </span>
           </label>
           <input
             type="number"
-            id="airDensity"
-            name="airDensity"
-            step="0.000001"
-            value="1.234720"
-            min="0.5"
-            max="1.5"
+            id="temperature"
+            name="temperature"
+            step="0.1"
+            value="20.0"
+            min="-50"
+            max="50"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="pressure">
+            Atmospheric Pressure (hPa):
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext">The atmospheric pressure in hPa.</span>
+            </span>
+          </label>
+          <input
+            type="number"
+            id="pressure"
+            name="pressure"
+            step="1"
+            value="1014"
+            min="800"
+            max="2000"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="humidity">
+            Relative Humidity (%):
+            <span class="tooltip"
+              >?
+              <span class="tooltiptext">The relative air humidity in %.</span>
+            </span>
+          </label>
+          <input
+            type="number"
+            id="humidity"
+            name="humidity"
+            step="1"
+            value="50"
+            min="0"
+            max="100"
             required
           />
         </div>
@@ -275,7 +316,7 @@
 
         <div class="form-group">
           <label for="ftp">
-            FTP:
+            FTP (W):
             <span class="tooltip"
               >?
               <span class="tooltiptext"
@@ -296,7 +337,7 @@
         </div>
         <div class="form-group">
           <label for="pma">
-            MAP:
+            MAP (W):
             <span class="tooltip"
               >?
               <span class="tooltiptext">Maximum Aerobic Power in watts.</span>
@@ -315,7 +356,7 @@
         </div>
         <div class="form-group">
           <label for="totalWeight">
-            Total Weight:
+            Total Weight (kg):
             <span class="tooltip"
               >?
               <span class="tooltiptext"
