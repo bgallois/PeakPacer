@@ -16,6 +16,7 @@ import os
 import time
 import metpy.calc
 from metpy.units import units
+import sweat
 
 
 class PeakPacer:
@@ -50,6 +51,21 @@ class PeakPacer:
                          rolling_friction, masse, slope, efficiency, **kwargs):
         return velocity * efficiency * (aero_force(velocity, air_density, cda, wind_speed) +
                                         rolling_resistance(rolling_friction, masse, slope) + gravity(masse, slope))
+
+    def cda_from_power(self, data):
+        cda = 2 * (
+            data["power"].values / (
+                data["speed"].values * self.rider_profil["efficiency"]) - self.rolling_resistance(
+                self.road_profil["rolling_friction"],
+                self.rider_profil["masse"],
+                data["slope"].values) - self.gravity(
+                self.rider_profil["masse"],
+                data["slope"].values)) / (
+                    self.road_profil["air_density"] * (
+                        data["speed"].values + data["wind"].values)**2)
+        cda[cda < 0] = np.nan  # TODO FIXME
+        cda[cda > 1.5] = np.nan  # TODO FIXME
+        return cda
 
     def velocity_from_power(self, power, data):
 
@@ -158,6 +174,13 @@ class PeakPacer:
     def wind(self, orientation, wind_direction, wind_force):
         wind_direction = np.ones_like(orientation) * wind_direction
         return wind_force * np.cos(np.deg2rad(orientation - wind_direction))
+
+    def yaw(self, orientation, wind_direction, wind_force):
+        wind_direction = np.ones_like(orientation) * wind_direction
+        v_tan = wind_force * np.cos(np.deg2rad(orientation - wind_direction))
+        v_nor = wind_force * np.sin(np.deg2rad(orientation - wind_direction))
+        yaw = np.arctan(v_nor / (self.data["speed"].values - v_tan))
+        return yaw
 
     def compute_split_average(self, values, splits):
         means = []
@@ -324,3 +347,45 @@ class PeakPacer:
         print("Computation time ", time.time() - start)
         return self.data_split, self.data_sampled, self.split_summary.to_json(
             orient="columns"), summary
+
+    def cda_analysis(self):
+        self.data = self.road_profil["data"]
+        self.data = self.data.rolling(datetime.timedelta(seconds=3)).mean()
+
+        self.data = self.data[self.data["power"].diff() < 10]
+        self.data["lap"] = np.intp(self.data["lap"])
+
+        geod = Geodesic.WGS84
+        coords = [
+            (i, j) for i, j in zip(
+                self.data["latitude"].values, self.data["longitude"].values)]
+        self.data["direction"] = [
+            0] + [geod.Inverse(*j, *coords[i + 1])['azi1'] for i, j in enumerate(coords[:-1])]
+        self.data["wind"] = self.wind(
+            self.data["direction"].values,
+            np.ones_like(self.data["direction"].values) *
+            self.road_profil["wind_direction_param"],
+            self.road_profil["wind_speed_param"])
+        self.data["slope"] = self.data["elevation"].diff() / \
+            self.data["distance"].diff() * 100
+        self.data["cda"] = self.cda_from_power(self.data)
+
+        self.data["yaw"] = self.yaw(
+            self.data["direction"].values,
+            np.ones_like(self.data["direction"].values) *
+            self.road_profil["wind_direction_param"],
+            self.road_profil["wind_speed_param"])
+
+        self.data = self.data.dropna(subset=["cda", "yaw"])
+        self.data["yaw"] = np.rad2deg(self.data["yaw"].values)
+        self.data = self.data.sort_values(by=["yaw"])
+
+        laps = []
+        for j in set(self.data.lap.values):
+            dat = self.data[self.data.lap.values == j]
+            dat = dat[np.abs(
+                scipy.stats.zscore(dat.yaw.values)) < 3]
+            dat = dat[np.abs(
+                scipy.stats.zscore(dat.cda.values)) < 2.5]
+            laps.append((dat.yaw.values, dat.cda.values))
+        return laps

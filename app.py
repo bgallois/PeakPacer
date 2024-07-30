@@ -7,10 +7,15 @@ import plotly.graph_objs as go
 from dash import Dash, dcc, html, Input, Output, State
 import numpy as np
 import uuid
+import sweat
+import plotly.express as px
+import plotly.io as pio
+from plotly.subplots import make_subplots
+import plotly.colors as pc
 
 app = Flask(__name__)
 UPLOAD_FOLDER = './static/gpx'
-app.config['ALLOWED_EXTENSIONS'] = {'gpx'}
+app.config['ALLOWED_EXTENSIONS'] = {'gpx', 'fit'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = str(uuid.uuid4())
 
@@ -111,6 +116,11 @@ def get_coordinates():
 @app.route('/')
 def index():
     return render_template('map.html')
+
+
+@app.route('/cda')
+def cda():
+    return render_template('cda.html')
 
 
 def process_gpx(file_path):
@@ -263,6 +273,105 @@ def plot(data_split, data_sampled, summary):
             }),
         dcc.Store(id="session-id", data=get_session_id()),
     ])
+
+
+def plot_cda(cdas):
+    colors = pc.sample_colorscale(
+        px.colors.diverging.Portland,
+        samplepoints=len(cdas))
+    labels = [f"Lap {i + 1}" for i in range(len(cdas))]
+
+    fig = make_subplots(
+        rows=1, cols=2, column_widths=[0.7, 0.3],
+        subplot_titles=("CdA vs Yaw", " Mean CdA ± SEM"),
+        specs=[[{"type": "scatter"}, {"type": "bar"}]]
+    )
+
+    for i, lap in enumerate(cdas):
+        is_visible = "legendonly" if np.std(
+            lap[1]) / np.sqrt(len(lap[1])) >= 0.02 else True
+        fig.add_trace(
+            go.Scatter(
+                x=lap[0],
+                y=lap[1],
+                mode="markers",
+                legendgroup=labels[i],
+                name=labels[i],
+                marker=dict(color=colors[i]),
+                visible=is_visible,
+            ),
+            row=1, col=1
+        )
+
+        fig.add_trace(
+            go.Bar(
+                x=[labels[i]],
+                y=[np.mean(lap[1])],
+                name=labels[i],
+                legendgroup=labels[i],
+                showlegend=False,
+                marker=dict(color=colors[i]),
+                error_y=dict(
+                    type='data',
+                    array=[np.std(lap[1]) / np.sqrt(len(lap[1]))],
+                    visible=True
+                ),
+                visible=is_visible,
+            ),
+            row=1, col=2
+        )
+
+    fig.update_layout(
+        template="seaborn",
+        margin=dict(l=0, r=0, t=40, b=0),
+        xaxis_title='Yaw Angle (°)',
+        yaxis_title='CdA (m²)'
+    )
+    return fig
+
+
+@app.route('/cda/submit-data', methods=['POST'])
+def process_cda_data():
+    fit = request.files.get('fileInput')
+    total_weight = request.form.get('totalWeight')
+    efficiency = request.form.get('efficiency')
+    rolling_friction = request.form.get('rollingFriction')
+    temperature = request.form.get('temperature')
+    pressure = request.form.get('pressure')
+    humidity = request.form.get('humidity')
+    wind_direction = request.form.get('windDirection')
+    wind_speed = request.form.get('windSpeed')
+
+    if not all([total_weight, efficiency,
+               rolling_friction, wind_direction, wind_speed, temperature, pressure, humidity]):
+        return jsonify({'error': 'All fields are required'}), 400
+
+    if fit and allowed_file(fit.filename):
+        filename = secure_filename(fit.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        fit.save(filepath)
+    else:
+        fit.filename = os.path.join("demo.fit")
+
+    rider_profil = {
+        'masse': float(total_weight),
+        'efficiency': float(efficiency) / 100,
+    }
+
+    road_profil = {
+        "air_density": peak_pacer.get_air_density(float(temperature), float(pressure), float(humidity)),
+        "rolling_friction": float(rolling_friction),
+        "wind_direction_param": float(wind_direction),
+        "wind_speed_param": float(wind_speed) / 3.6,
+        "data": sweat.read_fit(os.path.join(app.config['UPLOAD_FOLDER'], fit.filename))
+    }
+    peak_pacer.set_parameters(rider_profil, road_profil, "None")
+    cdas = peak_pacer.cda_analysis()
+    fig = plot_cda(cdas)
+
+    plot_html = pio.to_html(fig, full_html=False, include_plotlyjs=False)
+
+    return jsonify({'plot_html': plot_html})
 
 
 @dashapp.server.before_request
