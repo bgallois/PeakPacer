@@ -1,0 +1,12 @@
+scipy
+numpy<=1.26
+pandas
+flask
+gpxpy
+matplotlib
+geopy
+seaborn
+plotly
+dash
+metpy
+sweat
